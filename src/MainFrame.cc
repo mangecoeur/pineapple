@@ -68,6 +68,10 @@ MainFrame::MainFrame(std::string url0, std::string filename,
 {
     wxLogDebug("MainFrame::MainFrame");
 
+    webview = nullptr;
+    menubar = nullptr;
+    toolbar = nullptr;
+
     SetupMenu();
     SetupToolbar();
     SetupWebView();
@@ -190,6 +194,12 @@ void MainFrame::SetupMenu()
     menu_theme->Append(wxID_THEME_RED, "Red");
     menubar->Append(menu_theme, "Theme");
 
+    wxMenu *menu_view = new wxMenu();
+    menu_view->Append(wxID_VIEW_TOOLBAR_NONE, "No toolbar");
+    menu_view->Append(wxID_VIEW_TOOLBAR_SMALL, "Small toolbar");
+    menu_view->Append(wxID_VIEW_TOOLBAR_LARGE, "Big toolbar");
+    menubar->Append(menu_view, "View");
+
     wxMenu *menu_help = new wxMenu();
     menu_help->Append(wxID_HELP_KEYBOARD, "Keyboard shortcuts");
     menu_help->AppendSeparator();
@@ -205,7 +215,13 @@ void MainFrame::SetupMenu()
 
 void MainFrame::SetupToolbar()
 {
-    toolbar = CreateToolBar(config::toolbar_style);
+    PreferencesManager &prefs(wxGetApp().preferences);
+    long style = wxTB_TEXT;
+    if (!prefs.GetBool("toolbar_text", config::toolbar_text_default)) {
+        style = wxTB_HORIZONTAL;
+    }
+
+    toolbar = new wxToolBar(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, style);
 
     toolbar->AddTool(wxID_SAVE, "Save", toolbar_icon("Save.png"), "Save");
 
@@ -236,7 +252,6 @@ void MainFrame::SetupToolbar()
 
     toolbar->AddTool(wxID_CELL_CODE, "Code", toolbar_icon("Pencil.png"), "Cell type code");
     toolbar->AddTool(wxID_CELL_MARKDOWN, "Markdown", toolbar_icon("Pen.png"), "Cell type markdown");
-//    toolbar->AddTool(wxID_CELL_RAW, "Raw", toolbar_icon("Fantasy-50.png"), "Cell type raw");
 
     toolbar->AddSeparator();
 
@@ -247,6 +262,12 @@ void MainFrame::SetupToolbar()
     toolbar->EnableTool(wxID_KERNEL_BUSY, false);
 
     toolbar->Realize();
+
+    if (prefs.GetBool("toolbar_show", config::toolbar_show_default)) {
+        toolbar->Show(true);
+    } else {
+        toolbar->Show(false);
+    }
 }
 
 void MainFrame::SetupWebView()
@@ -256,9 +277,23 @@ void MainFrame::SetupWebView()
     webview->EnableContextMenu(false);
 }
 
+void MainFrame::UpdateToolbar()
+{
+    wxSizer *frame_sizer = GetSizer();
+    frame_sizer->Detach(0); // remove old toolbar
+    if (toolbar) {
+        toolbar->Destroy();
+    }
+    SetupToolbar();
+    frame_sizer->Prepend(toolbar, 0, wxEXPAND, 0);
+    Layout();
+}
+
 void MainFrame::SetupLayout(const wxPoint &/* pos */, const wxSize &size)
 {
-    wxBoxSizer* frame_sizer = new wxBoxSizer(wxVERTICAL);
+    wxBoxSizer *frame_sizer = new wxBoxSizer(wxVERTICAL);
+
+    frame_sizer->Add(toolbar, 0, wxEXPAND, 0);
     frame_sizer->Add(webview, 1, wxEXPAND, 10);
     webview->Show();
     SetSizerAndFit(frame_sizer);
@@ -296,7 +331,7 @@ void MainFrame::SetupBindings()
             }, id);
 
     };
-    
+
     auto bind_theme = [this](int id, std::string theme) -> void {
         
         Bind(wxEVT_COMMAND_MENU_SELECTED,
@@ -395,15 +430,40 @@ void MainFrame::SetupBindings()
             webview->RunScript(std::string("require('base/js/namespace').notebook.clear_output();"));
         }, wxID_CLEAR_OUTPUT);
 
+    Bind(wxEVT_COMMAND_MENU_SELECTED,
+        [this](wxCommandEvent &/* event */) -> void {
+            wxGetApp().preferences.SetBool("toolbar_show", false);
+            UpdateToolbar();
+        }, wxID_VIEW_TOOLBAR_NONE);
+
+    Bind(wxEVT_COMMAND_MENU_SELECTED,
+        [this](wxCommandEvent &/* event */) -> void {
+            wxGetApp().preferences.SetBool("toolbar_show", true);
+            wxGetApp().preferences.SetBool("toolbar_text", config::toolbar_text_small);
+            wxGetApp().preferences.SetInt("toolbar_size", config::toolbar_size_small);
+            UpdateToolbar();
+        }, wxID_VIEW_TOOLBAR_SMALL);
+
+    Bind(wxEVT_COMMAND_MENU_SELECTED,
+        [this](wxCommandEvent &/* event */) -> void {
+            wxGetApp().preferences.SetBool("toolbar_show", true);
+            wxGetApp().preferences.SetBool("toolbar_text", config::toolbar_text_large);
+            wxGetApp().preferences.SetInt("toolbar_size", config::toolbar_size_large);
+            UpdateToolbar();
+        }, wxID_VIEW_TOOLBAR_LARGE);
 
     /// Setup permanent handler for kernel busy/idle updates
     handler.register_callback(config::token_kernel_busy, AsyncResult::Success,
         [this](Callback::argument x) {
             if (x == std::string("true")) {
-                this->toolbar->EnableTool(wxID_KERNEL_BUSY, true);
+                if (this->toolbar) {
+                    this->toolbar->EnableTool(wxID_KERNEL_BUSY, true);
+                }
             }
             if (x == std::string("false")) {
-                this->toolbar->EnableTool(wxID_KERNEL_BUSY, false);
+                if (this->toolbar) {
+                    this->toolbar->EnableTool(wxID_KERNEL_BUSY, false);
+                }
             }
         },
         CallbackType::Infinite);
@@ -420,7 +480,9 @@ void MainFrame::LoadDocument(bool indirect_load)
         // Do template replacement for url
         std::string contents{wxGetApp().load_page};
         replace_one(contents, "{{url}}", url);
-        webview->SetPage(wxString(contents), "");
+        std::string source(wxGetApp().base_url + std::string("/loading.html"));
+        // Explicitly set source for cross-origin checks
+        webview->SetPage(wxString(contents), source);
     } else {
         webview->LoadURL(url);
     }

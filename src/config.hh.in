@@ -30,6 +30,7 @@ constexpr char version_minor [] = "${VERSION_MINOR}";
 constexpr char version_patch [] = "${VERSION_PATCH}";
 constexpr char version [] = "${VERSION_MAJOR}" "." "${VERSION_MINOR}" "." "${VERSION_PATCH}";
 constexpr char version_full [] = "${VERSION_NAME}-${VERSION_MAJOR}" "." "${VERSION_MINOR}" "." "${VERSION_PATCH}";
+constexpr char version_date [] = "${COMPILE_DATE}";
 
 /// Environment variable to pass python path
 constexpr char python_path_env[] = "${UPPERCASE_VERSION_NAME}_PYTHON";
@@ -90,14 +91,18 @@ constexpr char blank_notebook_filename[] = "blank.ipynb";
 constexpr int token_kernel_busy = -1;
 constexpr int token_final_save = -2;
 
+constexpr bool toolbar_show_default = true;
+constexpr int toolbar_size_small = 25;
+constexpr int toolbar_size_large = 32;
+constexpr bool toolbar_text_small = false;
 #if defined(__APPLE__)
-    constexpr long int toolbar_style = wxTB_TEXT;
-    constexpr int toolbar_width = 48;
-    constexpr int toolbar_height = 48;
+    constexpr bool toolbar_text_large = true;
+    constexpr int toolbar_size_default = toolbar_size_large;
+    constexpr bool toolbar_text_default = true;
 #else
-    constexpr long int toolbar_style = wxTB_DEFAULT_STYLE;
-    constexpr int toolbar_width = 25;
-    constexpr int toolbar_height = 25;
+    constexpr bool toolbar_text_large = false;
+    constexpr int toolbar_size_default = toolbar_size_small;
+    constexpr bool toolbar_text_default = false;
 #endif
 
 /// How long to wait for save on close (ms)

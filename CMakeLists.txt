@@ -1,6 +1,6 @@
 ### Options
 
-option(INCLUDE_EXTRA_PACKAGES "Include extra python packages for PRO version (SciPy, ggplot, etc.)" OFF)
+option(INCLUDE_EXTRA_PACKAGES "Include extra python packages for Full version (SciPy, ggplot, etc.)" OFF)
 
 option(USE_PYTHON3 "Use latest Python3 version (instead of Python2.7)" ON)
 
@@ -14,11 +14,7 @@ set (CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}")
 
 ### Name to use
 
-if (INCLUDE_EXTRA_PACKAGES)
-    project(Pineapple-Pro)
-else()
-    project(Pineapple)
-endif()
+project(Pineapple)
 
 cmake_minimum_required(VERSION 2.8)
 
@@ -31,7 +27,8 @@ set(UPPERCASE_VERSION_NAME "PINEAPPLE")
 file(STRINGS "config/MAJOR" VERSION_MAJOR)
 file(STRINGS "config/MINOR" VERSION_MINOR)
 file(STRINGS "config/PATCH" VERSION_PATCH)
-message("VERSION is ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
+string(TIMESTAMP COMPILE_DATE)
+message("VERSION is ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH} (${COMPILE_DATE})")
 
 if (USE_PYTHON3)
     set(PYTHON_VERSION "3.5")
@@ -503,6 +500,7 @@ add_custom_target(custom-install-dev
 
 ### CPACK
 
+
 include (InstallRequiredSystemLibraries)
 set (CPACK_PACKAGE_VENDOR "${SIGNING_IDENTITY}")
 set (CPACK_RESOURCE_FILE_LICENSE "${PROJECT_SOURCE_DIR}/LICENSE")
@@ -512,6 +510,9 @@ set (CPACK_PACKAGE_VERSION_MINOR "${VERSION_MINOR}")
 set (CPACK_PACKAGE_VERSION_PATCH "${VERSION_PATCH}")
 set (CPACK_PACKAGE_EXECUTABLES "${PROJECT_NAME}" "${PROJECT_NAME}")
 set (CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-Python${PYTHON_VERSION}")
+if (INCLUDE_EXTRA_PACKAGES)
+    set (CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_FILE_NAME}-Full")
+endif()
 
 if(APPLE)
     set (CPACK_GENERATOR "DragNDrop")
