@@ -10,8 +10,10 @@ define([
     'notebook/js/cell',
     'custom/nbextensions/theme',
     'custom/nbextensions/readonly',
-    'custom/nbextensions/button'
-], function(IPython, events, notebook, cell, theme, readOnly, button) {
+    'custom/nbextensions/button',
+    'custom/nbextensions/tabs',
+], function(IPython, events, notebook, cell, theme, readOnly, button, tabs) {
+
     /// Register permanent events
     var flash = function(txt) {
         var old = document.title;
@@ -25,9 +27,24 @@ define([
         flash('$$$$-1|false');
     });
 
+    // When notebook is loaded and kernel_selector filled, respond
+    events.on('notebook_loaded.Notebook', function() {
+        var selector = IPython.notebook.kernel_selector;
+        var response = function() {
+            flash('$$$$-3|' + JSON.stringify(selector.kernelspecs));
+        };
+        if (selector._loaded) {
+            response();
+        } else {
+            selector.loaded.then(response);
+        }
+    });
+
+
     return {
         set_theme: theme.set_theme,
         toggleReadOnly: readOnly.toggleReadOnly,
-        setSelectionButton: button.setSelectionButton
+        setSelectionButton: button.setSelectionButton,
+        toggleSheetNew: tabs.toggleSheetNew
     };
 });
